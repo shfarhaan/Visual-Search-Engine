@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 import traceback
 from werkzeug.utils import secure_filename
+import threading
 
 # Import our backend modules
 from backend import FeatureExtractor, OCREngine, ImageIndexer, SearchEngine
@@ -48,6 +49,7 @@ indexing_status = {
     'total': 0,
     'message': 'Not indexed'
 }
+indexing_lock = threading.Lock()  # Thread-safe lock for indexing status
 
 
 def allowed_file(filename):
@@ -135,10 +137,13 @@ def build_index():
         data = request.get_json()
         directories = data.get('directories', config.get_scan_directories())
         
-        if indexing_status['is_indexing']:
-            return jsonify({'error': 'Indexing already in progress'}), 400
+        # Thread-safe check for concurrent indexing
+        with indexing_lock:
+            if indexing_status['is_indexing']:
+                return jsonify({'error': 'Indexing already in progress'}), 400
+            indexing_status['is_indexing'] = True
         
-        indexing_status['is_indexing'] = True
+        
         indexing_status['progress'] = 0
         indexing_status['message'] = 'Starting indexing...'
         
@@ -221,15 +226,17 @@ def search_visual():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Get top_k parameter
-        top_k = request.form.get('top_k', config.get('search.top_k', 20))
-        top_k = int(top_k)
-        
-        # Perform search
-        results = search_engine.search_by_image(filepath, top_k=top_k)
-        
-        # Clean up uploaded file
-        os.remove(filepath)
+        try:
+            # Get top_k parameter
+            top_k = request.form.get('top_k', config.get('search.top_k', 20))
+            top_k = int(top_k)
+            
+            # Perform search
+            results = search_engine.search_by_image(filepath, top_k=top_k)
+        finally:
+            # Always clean up uploaded file, even if search fails
+            if os.path.exists(filepath):
+                os.remove(filepath)
         
         return jsonify({
             'success': True,
@@ -299,16 +306,17 @@ def search_hybrid():
         # Get top_k parameter
         top_k = int(request.form.get('top_k', config.get('search.top_k', 20)))
         
-        # Perform hybrid search
-        results = search_engine.hybrid_search(
-            query_image_path=query_image,
-            query_text=query_text if query_text else None,
-            top_k=top_k
-        )
-        
-        # Clean up uploaded file
-        if query_image and os.path.exists(query_image):
-            os.remove(query_image)
+        try:
+            # Perform hybrid search
+            results = search_engine.hybrid_search(
+                query_image_path=query_image,
+                query_text=query_text if query_text else None,
+                top_k=top_k
+            )
+        finally:
+            # Clean up uploaded file
+            if query_image and os.path.exists(query_image):
+                os.remove(query_image)
         
         return jsonify({
             'success': True,

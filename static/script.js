@@ -71,7 +71,7 @@ async function buildIndex() {
     const directories = directoriesText.split('\n').filter(d => d.trim());
     
     if (directories.length === 0) {
-        alert('Please enter at least one directory to scan');
+        showAlert('error', 'Please enter at least one directory to scan');
         return;
     }
     
@@ -167,7 +167,7 @@ async function searchVisual() {
     const topK = document.getElementById('visualTopK').value;
     
     if (!fileInput.files || !fileInput.files[0]) {
-        alert('Please select an image');
+        showAlert('error', 'Please select an image');
         return;
     }
     
@@ -184,7 +184,7 @@ async function searchText() {
     const maxResults = document.getElementById('textMaxResults').value;
     
     if (!query.trim()) {
-        alert('Please enter a search query');
+        showAlert('error', 'Please enter a search query');
         return;
     }
     
@@ -201,7 +201,7 @@ async function searchHybrid() {
     const topK = document.getElementById('hybridTopK').value;
     
     if (!fileInput.files[0] && !query.trim()) {
-        alert('Please provide at least an image or text query');
+        showAlert('error', 'Please provide at least an image or text query');
         return;
     }
     

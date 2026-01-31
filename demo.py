@@ -36,7 +36,21 @@ def create_sample_images():
         
         # Try to use a default font, fallback to default if not available
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+            # Try common font locations across platforms
+            font_paths = [
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+                "/System/Library/Fonts/Helvetica.ttc",  # macOS
+                "C:\\Windows\\Fonts\\arial.ttf",  # Windows
+            ]
+            font = None
+            for font_path in font_paths:
+                try:
+                    font = ImageFont.truetype(font_path, 30)
+                    break
+                except:
+                    continue
+            if font is None:
+                font = ImageFont.load_default()
         except:
             font = ImageFont.load_default()
         
