@@ -1,6 +1,7 @@
 // Visual Search Engine - JavaScript
 
 const API_BASE = '/api';
+let currentResults = []; // Store current search results for sorting
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -381,16 +382,28 @@ function displayResults(data) {
     if (!data.results || data.results.length === 0) {
         resultsGrid.innerHTML = '<p>No results found</p>';
         resultsInfo.innerHTML = '';
+        currentResults = [];
         return;
     }
     
+    // Store results globally for sorting
+    currentResults = data.results;
+    
     resultsInfo.innerHTML = `<p class="alert alert-success">Found ${data.count} results</p>`;
     
+    renderResults(currentResults);
+}
+
+// Render results to grid
+function renderResults(results) {
+    const resultsGrid = document.getElementById('resultsGrid');
     resultsGrid.innerHTML = '';
     
-    data.results.forEach(result => {
+    results.forEach(result => {
         const item = document.createElement('div');
         item.className = 'result-item';
+        item.setAttribute('data-filename', result.filename);
+        item.setAttribute('data-similarity', result.similarity || 0);
         
         let badges = '';
         if (result.match_type === 'visual' || result.visual_score) {
@@ -410,17 +423,49 @@ function displayResults(data) {
             <img src="${API_BASE}/image/${encodeURIComponent(result.path)}" 
                  alt="${result.filename}" 
                  class="result-image"
+                 onclick="openImageInNewTab('${result.path}')"
+                 style="cursor: pointer;"
+                 title="Click to open in new tab"
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not found%3C/text%3E%3C/svg%3E'">
             <div class="result-info">
-                <p class="result-filename">${result.filename}</p>
+                <p class="result-filename" title="${result.path}">${result.filename}</p>
                 ${badges}
                 ${similarity}
                 ${ocrText}
+                <button onclick="copyImagePath('${result.path}')" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-top: 0.5rem;">
+                    📋 Copy Path
+                </button>
             </div>
         `;
         
         resultsGrid.appendChild(item);
     });
+}
+
+// Sort results
+function sortResults() {
+    const sortBy = document.getElementById('sortResults').value;
+    
+    if (!currentResults || currentResults.length === 0) {
+        return;
+    }
+    
+    let sortedResults = [...currentResults];
+    
+    switch(sortBy) {
+        case 'filename':
+            sortedResults.sort((a, b) => a.filename.localeCompare(b.filename));
+            break;
+        case 'similarity':
+            sortedResults.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+            break;
+        case 'relevance':
+        default:
+            // Keep original order
+            break;
+    }
+    
+    renderResults(sortedResults);
 }
 
 // Show alert
