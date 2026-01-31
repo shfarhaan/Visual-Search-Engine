@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Search Engine</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Visual Search Engine</h1>
+            <p class="subtitle">Search images by visual similarity or text content</p>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-info">
+                <span id="statusMessage">Loading...</span>
+            </div>
+            <div class="index-stats" id="indexStats"></div>
+        </div>
+
+        <!-- Index Section -->
+        <section class="card">
+            <h2>📁 Index Images</h2>
+            <p>Configure directories to scan and build the search index.</p>
+            
+            <div class="form-group">
+                <label for="directories">Directories to scan (one per line):</label>
+                <textarea id="directories" rows="4" placeholder="./sample_images&#10;/path/to/your/images"></textarea>
+            </div>
+            
+            <button onclick="buildIndex()" class="btn btn-primary" id="indexBtn">
+                Build Index
+            </button>
+            
+            <div id="indexProgress" class="progress-container" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">Indexing...</p>
+            </div>
+        </section>
+
+        <!-- Search Section -->
+        <section class="card">
+            <h2>🔎 Search</h2>
+            
+            <div class="search-tabs">
+                <button class="tab-btn active" onclick="switchTab('visual')">Visual Search</button>
+                <button class="tab-btn" onclick="switchTab('text')">Text Search</button>
+                <button class="tab-btn" onclick="switchTab('hybrid')">Hybrid Search</button>
+            </div>
+
+            <!-- Visual Search Tab -->
+            <div id="visualTab" class="tab-content active">
+                <p>Upload an image to find visually similar images</p>
+                <div class="form-group">
+                    <label for="visualImage">Select Image:</label>
+                    <input type="file" id="visualImage" accept="image/*" onchange="previewImage(this, 'visualPreview')">
+                    <div id="visualPreview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label for="visualTopK">Number of results:</label>
+                    <input type="number" id="visualTopK" value="20" min="1" max="100">
+                </div>
+                <button onclick="searchVisual()" class="btn btn-primary">Search</button>
+            </div>
+
+            <!-- Text Search Tab -->
+            <div id="textTab" class="tab-content">
+                <p>Search for images containing specific text (OCR)</p>
+                <div class="form-group">
+                    <label for="textQuery">Search Query:</label>
+                    <input type="text" id="textQuery" placeholder="Enter text to search...">
+                </div>
+                <div class="form-group">
+                    <label for="textMaxResults">Max results:</label>
+                    <input type="number" id="textMaxResults" value="20" min="1" max="100">
+                </div>
+                <button onclick="searchText()" class="btn btn-primary">Search</button>
+            </div>
+
+            <!-- Hybrid Search Tab -->
+            <div id="hybridTab" class="tab-content">
+                <p>Search using both visual similarity and text content</p>
+                <div class="form-group">
+                    <label for="hybridImage">Select Image (optional):</label>
+                    <input type="file" id="hybridImage" accept="image/*" onchange="previewImage(this, 'hybridPreview')">
+                    <div id="hybridPreview" class="image-preview"></div>
+                </div>
+                <div class="form-group">
+                    <label for="hybridQuery">Text Query (optional):</label>
+                    <input type="text" id="hybridQuery" placeholder="Enter text to search...">
+                </div>
+                <div class="form-group">
+                    <label for="hybridTopK">Number of results:</label>
+                    <input type="number" id="hybridTopK" value="20" min="1" max="100">
+                </div>
+                <button onclick="searchHybrid()" class="btn btn-primary">Search</button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="card" id="resultsSection" style="display: none;">
+            <h2>📊 Results</h2>
+            <div id="resultsInfo"></div>
+            <div id="resultsGrid" class="results-grid"></div>
+        </section>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

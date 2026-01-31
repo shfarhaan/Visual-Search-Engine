@@ -1,0 +1,35 @@
+scan_directories:
+  - ./sample_images  # Default directory for testing
+
+image_extensions:
+  - .jpg
+  - .jpeg
+  - .png
+  - .gif
+  - .bmp
+  - .webp
+
+model:
+  name: vgg16  # Options: vgg16, resnet50
+  embedding_size: 512
+  batch_size: 32
+
+ocr:
+  enabled: true
+  languages: ['en']
+  gpu: false
+
+search:
+  top_k: 20  # Number of results to return
+  similarity_threshold: 0.7
+
+storage:
+  index_path: ./data/image_index.pkl
+  embeddings_path: ./data/embeddings.npy
+  metadata_path: ./data/metadata.json
+  ocr_index_path: ./data/ocr_index.pkl
+
+server:
+  host: 0.0.0.0
+  port: 5000
+  debug: true

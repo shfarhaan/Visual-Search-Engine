@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  visual-search-engine:
+    build: .
+    container_name: visual-search-engine
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount your local image directories here
+      - ./sample_images:/app/sample_images
+      - ./data:/app/data
+      # Add more image directories as needed
+      # - /path/to/your/images:/app/images
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
