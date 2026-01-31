@@ -1,14 +1,128 @@
 // Visual Search Engine - JavaScript
 
 const API_BASE = '/api';
+let currentResults = []; // Store current search results for sorting
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadStatus();
     loadDefaultDirectories();
+    setupDragAndDrop();
+    setupKeyboardShortcuts();
     // Poll status every 5 seconds when indexing
     setInterval(checkIndexingStatus, 5000);
 });
+
+// Setup drag and drop for file inputs
+function setupDragAndDrop() {
+    const fileInputs = ['visualImage', 'hybridImage'];
+    
+    fileInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        const previewId = inputId === 'visualImage' ? 'visualPreview' : 'hybridPreview';
+        const preview = document.getElementById(previewId);
+        
+        if (!input || !preview) return;
+        
+        // Style preview area as drop zone
+        preview.style.minHeight = '100px';
+        preview.style.border = '2px dashed #ccc';
+        preview.style.borderRadius = '8px';
+        preview.style.padding = '20px';
+        preview.style.textAlign = 'center';
+        preview.innerHTML = '<p style="color: #999;">Drag & drop image here or click to select</p>';
+        
+        // Make preview clickable to trigger file input
+        preview.addEventListener('click', () => input.click());
+        
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            preview.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Highlight drop area when dragging over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            preview.addEventListener(eventName, () => {
+                preview.style.borderColor = '#4CAF50';
+                preview.style.backgroundColor = '#f0f8f0';
+            });
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            preview.addEventListener(eventName, () => {
+                preview.style.borderColor = '#ccc';
+                preview.style.backgroundColor = 'transparent';
+            });
+        });
+        
+        // Handle dropped files
+        preview.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    // Create a DataTransfer object and add the file
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                    
+                    // Trigger preview
+                    previewImage(input, previewId);
+                } else {
+                    showAlert('error', 'Please drop an image file');
+                }
+            }
+        });
+    });
+}
+
+// Setup keyboard shortcuts
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + Enter to search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab.id === 'visualTab') {
+                searchVisual();
+            } else if (activeTab.id === 'textTab') {
+                searchText();
+            } else if (activeTab.id === 'hybridTab') {
+                searchHybrid();
+            }
+        }
+        
+        // Ctrl/Cmd + I to focus index button
+        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+            e.preventDefault();
+            document.getElementById('indexBtn').focus();
+        }
+        
+        // Tab switching with Ctrl + 1/2/3
+        if (e.ctrlKey && ['1', '2', '3'].includes(e.key)) {
+            e.preventDefault();
+            const tabs = ['visual', 'text', 'hybrid'];
+            const tabIndex = parseInt(e.key) - 1;
+            if (tabs[tabIndex]) {
+                const tabButtons = document.querySelectorAll('.tab-btn');
+                tabButtons[tabIndex].click();
+            }
+        }
+        
+        // Ctrl + ? to toggle shortcuts help
+        if (e.ctrlKey && e.key === '/') {
+            e.preventDefault();
+            const help = document.getElementById('shortcutsHelp');
+            help.style.display = help.style.display === 'none' ? 'block' : 'none';
+        }
+    });
+}
 
 // Load current status
 async function loadStatus() {
@@ -226,6 +340,7 @@ async function performSearch(url, data, method = 'POST', isJSON = false) {
     // Show loading
     resultsSection.style.display = 'block';
     resultsGrid.innerHTML = '<p>Searching...</p>';
+    startSearchTimer();
     
     try {
         const options = {
@@ -246,6 +361,7 @@ async function performSearch(url, data, method = 'POST', isJSON = false) {
         
         if (response.ok) {
             displayResults(result);
+            endSearchTimer(result.count);
         } else {
             resultsGrid.innerHTML = `<p class="alert alert-error">${result.error || 'Search failed'}</p>`;
         }
@@ -266,46 +382,124 @@ function displayResults(data) {
     if (!data.results || data.results.length === 0) {
         resultsGrid.innerHTML = '<p>No results found</p>';
         resultsInfo.innerHTML = '';
+        currentResults = [];
         return;
     }
     
+    // Store results globally for sorting
+    currentResults = data.results;
+    
     resultsInfo.innerHTML = `<p class="alert alert-success">Found ${data.count} results</p>`;
     
+    renderResults(currentResults);
+}
+
+// Render results to grid
+function renderResults(results) {
+    const resultsGrid = document.getElementById('resultsGrid');
     resultsGrid.innerHTML = '';
     
-    data.results.forEach(result => {
+    results.forEach(result => {
         const item = document.createElement('div');
         item.className = 'result-item';
+        item.setAttribute('data-filename', result.filename);
+        item.setAttribute('data-similarity', result.similarity || 0);
         
-        let badges = '';
+        // Create image element
+        const img = document.createElement('img');
+        img.src = `${API_BASE}/image/${encodeURIComponent(result.path)}`;
+        img.alt = result.filename;
+        img.className = 'result-image';
+        img.style.cursor = 'pointer';
+        img.title = 'Click to open in new tab';
+        img.addEventListener('click', () => openImageInNewTab(result.path));
+        img.onerror = function() {
+            this.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not found%3C/text%3E%3C/svg%3E';
+        };
+        
+        // Create info div
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'result-info';
+        
+        // Filename paragraph
+        const filenamePara = document.createElement('p');
+        filenamePara.className = 'result-filename';
+        filenamePara.textContent = result.filename;
+        filenamePara.title = result.path;
+        infoDiv.appendChild(filenamePara);
+        
+        // Badges
         if (result.match_type === 'visual' || result.visual_score) {
-            badges += `<span class="match-badge match-visual">Visual</span>`;
+            const badge = document.createElement('span');
+            badge.className = 'match-badge match-visual';
+            badge.textContent = 'Visual';
+            infoDiv.appendChild(badge);
         }
         if (result.match_type === 'text' || result.text_match) {
-            badges += `<span class="match-badge match-text">Text</span>`;
+            const badge = document.createElement('span');
+            badge.className = 'match-badge match-text';
+            badge.textContent = 'Text';
+            infoDiv.appendChild(badge);
         }
         
-        const similarity = result.similarity ? 
-            `<p class="result-similarity">Similarity: ${(result.similarity * 100).toFixed(1)}%</p>` : '';
+        // Similarity
+        if (result.similarity) {
+            const simPara = document.createElement('p');
+            simPara.className = 'result-similarity';
+            simPara.textContent = `Similarity: ${(result.similarity * 100).toFixed(1)}%`;
+            infoDiv.appendChild(simPara);
+        }
         
-        const ocrText = result.ocr_text ? 
-            `<p class="result-text">${result.ocr_text.substring(0, 100)}${result.ocr_text.length > 100 ? '...' : ''}</p>` : '';
+        // OCR text
+        if (result.ocr_text) {
+            const ocrPara = document.createElement('p');
+            ocrPara.className = 'result-text';
+            const text = result.ocr_text.substring(0, 100);
+            ocrPara.textContent = text + (result.ocr_text.length > 100 ? '...' : '');
+            infoDiv.appendChild(ocrPara);
+        }
         
-        item.innerHTML = `
-            <img src="${API_BASE}/image/${encodeURIComponent(result.path)}" 
-                 alt="${result.filename}" 
-                 class="result-image"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not found%3C/text%3E%3C/svg%3E'">
-            <div class="result-info">
-                <p class="result-filename">${result.filename}</p>
-                ${badges}
-                ${similarity}
-                ${ocrText}
-            </div>
-        `;
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn';
+        copyBtn.style.padding = '0.25rem 0.5rem';
+        copyBtn.style.fontSize = '0.8rem';
+        copyBtn.style.marginTop = '0.5rem';
+        copyBtn.textContent = '📋 Copy Path';
+        copyBtn.addEventListener('click', () => copyImagePath(result.path));
+        infoDiv.appendChild(copyBtn);
         
+        // Append elements
+        item.appendChild(img);
+        item.appendChild(infoDiv);
         resultsGrid.appendChild(item);
     });
+}
+
+// Sort results
+function sortResults() {
+    const sortBy = document.getElementById('sortResults').value;
+    
+    if (!currentResults || currentResults.length === 0) {
+        return;
+    }
+    
+    let sortedResults = [...currentResults];
+    
+    switch(sortBy) {
+        case 'filename':
+            sortedResults.sort((a, b) => a.filename.localeCompare(b.filename));
+            break;
+        case 'similarity':
+            sortedResults.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+            break;
+        case 'relevance':
+        default:
+            // Keep original order
+            break;
+    }
+    
+    renderResults(sortedResults);
 }
 
 // Show alert
@@ -323,4 +517,72 @@ function showAlert(type, message) {
     setTimeout(() => {
         alert.remove();
     }, 5000);
+}
+
+// Export results as JSON
+function exportResults() {
+    const resultsGrid = document.getElementById('resultsGrid');
+    const items = resultsGrid.querySelectorAll('.result-item');
+    
+    if (items.length === 0) {
+        showAlert('error', 'No results to export');
+        return;
+    }
+    
+    const results = [];
+    items.forEach(item => {
+        const filename = item.querySelector('.result-filename').textContent;
+        const path = item.querySelector('.result-image').src;
+        const similarity = item.querySelector('.result-similarity')?.textContent || '';
+        const text = item.querySelector('.result-text')?.textContent || '';
+        
+        results.push({
+            filename,
+            path,
+            similarity,
+            text
+        });
+    });
+    
+    const dataStr = JSON.stringify(results, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `search_results_${new Date().toISOString()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    showAlert('success', 'Results exported successfully');
+}
+
+// Copy image path to clipboard
+function copyImagePath(path) {
+    navigator.clipboard.writeText(path).then(() => {
+        showAlert('success', 'Path copied to clipboard');
+    }).catch(err => {
+        showAlert('error', 'Failed to copy path');
+    });
+}
+
+// Open image in new tab
+function openImageInNewTab(path) {
+    window.open(`${API_BASE}/image/${encodeURIComponent(path)}`, '_blank');
+}
+
+// Add performance monitoring
+let searchStartTime = 0;
+
+function startSearchTimer() {
+    searchStartTime = performance.now();
+}
+
+function endSearchTimer(resultCount) {
+    if (searchStartTime > 0) {
+        const duration = ((performance.now() - searchStartTime) / 1000).toFixed(2);
+        const resultsInfo = document.getElementById('resultsInfo');
+        const currentInfo = resultsInfo.innerHTML;
+        resultsInfo.innerHTML = currentInfo + ` <span style="color: #666;">⚡ ${duration}s</span>`;
+        searchStartTime = 0;
+    }
 }

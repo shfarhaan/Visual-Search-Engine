@@ -104,10 +104,34 @@
 
         <!-- Results Section -->
         <section class="card" id="resultsSection" style="display: none;">
-            <h2>📊 Results</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0;">📊 Results</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label for="sortResults" style="margin: 0;">Sort by:</label>
+                    <select id="sortResults" onchange="sortResults()" style="padding: 0.5rem;">
+                        <option value="relevance">Relevance</option>
+                        <option value="filename">Filename</option>
+                        <option value="similarity">Similarity</option>
+                    </select>
+                    <button onclick="exportResults()" class="btn" style="padding: 0.5rem 1rem;">
+                        💾 Export Results
+                    </button>
+                </div>
+            </div>
             <div id="resultsInfo"></div>
             <div id="resultsGrid" class="results-grid"></div>
         </section>
+        
+        <!-- Keyboard Shortcuts Help -->
+        <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px; font-size: 0.85rem; max-width: 300px; display: none;" id="shortcutsHelp">
+            <h3 style="margin-top: 0; font-size: 1rem;">⌨️ Keyboard Shortcuts</h3>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                <li>Ctrl+Enter: Search</li>
+                <li>Ctrl+I: Focus Index</li>
+                <li>Ctrl+1/2/3: Switch Tabs</li>
+                <li>Ctrl+?: Toggle this help</li>
+            </ul>
+        </div>
     </div>
 
     <script src="/static/script.js"></script>

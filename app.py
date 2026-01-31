@@ -348,6 +348,54 @@ def serve_image(filepath):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/image/metadata/<path:filepath>')
+def get_image_metadata(filepath):
+    """Get metadata for an image."""
+    try:
+        from PIL import Image as PILImage
+        import datetime
+        
+        filepath = os.path.normpath(filepath)
+        
+        if not os.path.exists(filepath) or not os.path.isfile(filepath):
+            return jsonify({'error': 'Image not found'}), 404
+        
+        # Get file stats
+        file_stats = os.stat(filepath)
+        file_size = file_stats.st_size
+        modified_time = datetime.datetime.fromtimestamp(file_stats.st_mtime).isoformat()
+        
+        # Get image dimensions
+        try:
+            with PILImage.open(filepath) as img:
+                width, height = img.size
+                format_name = img.format
+                mode = img.mode
+        except Exception as e:
+            logger.warning(f"Could not read image dimensions: {e}")
+            width, height = None, None
+            format_name = None
+            mode = None
+        
+        metadata = {
+            'path': filepath,
+            'filename': os.path.basename(filepath),
+            'size_bytes': file_size,
+            'size_mb': round(file_size / (1024 * 1024), 2),
+            'modified': modified_time,
+            'width': width,
+            'height': height,
+            'format': format_name,
+            'mode': mode
+        }
+        
+        return jsonify(metadata), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting image metadata: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Initialize components on startup
     if initialize_components():
