@@ -24,7 +24,7 @@ def test_server_running():
     try:
         response = requests.get(f"{API_BASE}/status", timeout=5)
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 def test_status_endpoint():
@@ -33,7 +33,7 @@ def test_status_endpoint():
         response = requests.get(f"{API_BASE}/status", timeout=5)
         data = response.json()
         return 'indexing_status' in data and 'is_ready' in data
-    except:
+    except Exception:
         return False
 
 def test_indexing():
@@ -124,7 +124,7 @@ def test_image_serving():
             timeout=10
         )
         return response.status_code == 200
-    except:
+    except Exception:
         return False
 
 def main():

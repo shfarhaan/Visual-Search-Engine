@@ -405,39 +405,73 @@ function renderResults(results) {
         item.setAttribute('data-filename', result.filename);
         item.setAttribute('data-similarity', result.similarity || 0);
         
-        let badges = '';
+        // Create image element
+        const img = document.createElement('img');
+        img.src = `${API_BASE}/image/${encodeURIComponent(result.path)}`;
+        img.alt = result.filename;
+        img.className = 'result-image';
+        img.style.cursor = 'pointer';
+        img.title = 'Click to open in new tab';
+        img.addEventListener('click', () => openImageInNewTab(result.path));
+        img.onerror = function() {
+            this.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not found%3C/text%3E%3C/svg%3E';
+        };
+        
+        // Create info div
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'result-info';
+        
+        // Filename paragraph
+        const filenamePara = document.createElement('p');
+        filenamePara.className = 'result-filename';
+        filenamePara.textContent = result.filename;
+        filenamePara.title = result.path;
+        infoDiv.appendChild(filenamePara);
+        
+        // Badges
         if (result.match_type === 'visual' || result.visual_score) {
-            badges += `<span class="match-badge match-visual">Visual</span>`;
+            const badge = document.createElement('span');
+            badge.className = 'match-badge match-visual';
+            badge.textContent = 'Visual';
+            infoDiv.appendChild(badge);
         }
         if (result.match_type === 'text' || result.text_match) {
-            badges += `<span class="match-badge match-text">Text</span>`;
+            const badge = document.createElement('span');
+            badge.className = 'match-badge match-text';
+            badge.textContent = 'Text';
+            infoDiv.appendChild(badge);
         }
         
-        const similarity = result.similarity ? 
-            `<p class="result-similarity">Similarity: ${(result.similarity * 100).toFixed(1)}%</p>` : '';
+        // Similarity
+        if (result.similarity) {
+            const simPara = document.createElement('p');
+            simPara.className = 'result-similarity';
+            simPara.textContent = `Similarity: ${(result.similarity * 100).toFixed(1)}%`;
+            infoDiv.appendChild(simPara);
+        }
         
-        const ocrText = result.ocr_text ? 
-            `<p class="result-text">${result.ocr_text.substring(0, 100)}${result.ocr_text.length > 100 ? '...' : ''}</p>` : '';
+        // OCR text
+        if (result.ocr_text) {
+            const ocrPara = document.createElement('p');
+            ocrPara.className = 'result-text';
+            const text = result.ocr_text.substring(0, 100);
+            ocrPara.textContent = text + (result.ocr_text.length > 100 ? '...' : '');
+            infoDiv.appendChild(ocrPara);
+        }
         
-        item.innerHTML = `
-            <img src="${API_BASE}/image/${encodeURIComponent(result.path)}" 
-                 alt="${result.filename}" 
-                 class="result-image"
-                 onclick="openImageInNewTab('${result.path}')"
-                 style="cursor: pointer;"
-                 title="Click to open in new tab"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EImage not found%3C/text%3E%3C/svg%3E'">
-            <div class="result-info">
-                <p class="result-filename" title="${result.path}">${result.filename}</p>
-                ${badges}
-                ${similarity}
-                ${ocrText}
-                <button onclick="copyImagePath('${result.path}')" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-top: 0.5rem;">
-                    📋 Copy Path
-                </button>
-            </div>
-        `;
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn';
+        copyBtn.style.padding = '0.25rem 0.5rem';
+        copyBtn.style.fontSize = '0.8rem';
+        copyBtn.style.marginTop = '0.5rem';
+        copyBtn.textContent = '📋 Copy Path';
+        copyBtn.addEventListener('click', () => copyImagePath(result.path));
+        infoDiv.appendChild(copyBtn);
         
+        // Append elements
+        item.appendChild(img);
+        item.appendChild(infoDiv);
         resultsGrid.appendChild(item);
     });
 }
