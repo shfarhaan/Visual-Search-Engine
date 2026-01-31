@@ -1,2 +1,7 @@
 clothing-dataset/
-image_dictionary.csv
+image_dictionary.csvdata/
+*.pyc
+__pycache__/
+*.pkl
+*.npy
+.DS_Store
